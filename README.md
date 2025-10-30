@@ -50,8 +50,7 @@ plot_honeybee_model(model, show_wireframe=True, show_legend=True)
 
 ## Preview
 
-[![example_model.png](examples/example_model.png)
-]([example_model.html](examples/example_model.html))
+[![example_model.png](examples/example_model.png)]
 
 ---
 
