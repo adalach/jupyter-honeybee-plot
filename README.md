@@ -50,7 +50,7 @@ plot_honeybee_model(model, show_wireframe=True, show_legend=True)
 
 ## Preview
 
-[![example_model.png](examples/example_model.png)]
+[<img src="examples/example_model.png" alt="Example Honeybee model preview" width="500"/>](examples/example_model.html)
 
 ---
 
