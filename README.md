@@ -12,10 +12,8 @@ It also includes an example workflow with sample models fetched from Github [Hon
 The `plot_honeybee_model()` function renders one Honeybee `Model` as an interactive 3D visualization inside a Jupyter notebook. It is designed for fast, lightweight inspection of model geometry, supporting selective surface visibility, transparency, wireframe overlays, and adjustable camera scaling. The visualization is built using **Plotly**, enabling rotation, zooming, and exporting to HTML.
 
 **Inputs**
-
 * `model`: a `honeybee.model.Model` instance loaded from file or memory
 * `title`: controls how the figure is titled
-
   * Omitted (default): inferred from `model.display_name` or `model.identifier`
   * String: uses that text as title
   * `None`: hides the title entirely
@@ -32,9 +30,7 @@ The `plot_honeybee_model()` function renders one Honeybee `Model` as an interact
 
 
 **Outputs**
-
 * A `plotly.graph_objects.Figure` object visualizing the Honeybee model.
-
   * Shown interactively in Jupyter if `show=True` (default).
   * Can be saved via `fig.write_html("model.html")`.
 
@@ -48,21 +44,19 @@ model = Model.from_hbjson("tiny_house.hbjson")
 plot_honeybee_model(model, show_wireframe=True, show_legend=True)
 ```
 
-## Preview
+**Preview**
 
 [<img src="examples/example_model.png" alt="Example Honeybee model preview" width="500"/>](examples/example_model.html)
 
----
+
 
 ### Plot multiple Honeybee models in a grid layout
 
 The `plot_honeybee_models()` function renders multiple Honeybee models at once and composes them into a single grid image. Each model is drawn in an off-screen **PyVista** renderer, then assembled into one composite canvas using **Pillow**. This layout makes it easy to compare geometries, test cases, or model variations side by side.
 
 **Inputs**
-
 * `models`: iterable of Honeybee `Model` objects to visualize
 * `model_titles`: optional sequence of per-tile titles
-
   * Omitted (default): inferred from `display_name` or `identifier`
   * `None`: disables titles
 * `main_title`: optional global title above all subplots
@@ -80,7 +74,6 @@ The `plot_honeybee_models()` function renders multiple Honeybee models at once a
 * `**plot_kwargs`: forwarded to `pyvista.Plotter.add_mesh` (e.g., `surface_opacity=0.6`, `show_wireframe=True`)
 
 **Outputs**
-
 * When `show=True`: displays the composite grid image inline in Jupyter (default).
 * When `show=False`: returns a `PIL.Image` object, which can be saved or further processed.
 
@@ -95,7 +88,7 @@ img = plot_honeybee_models(models, main_title="HB models", show=False)
 img.save("hbmodels.png")
 ```
 
-## Preview
+**Preview**
 
 ![hbmodels.png](examples/hbmodels.png)
 
