@@ -46,6 +46,7 @@ def plot_honeybee_models(
     camera_zoom: float = 1.25,
     background_color: Optional[str] = None,
     legend_labels: Optional[List[str]] = None,
+    shades_opacity: float = 0.5,
     **plot_kwargs,
 ) -> Optional[Image.Image]:
     """Render multiple Honeybee models into a single image.
@@ -94,6 +95,9 @@ def plot_honeybee_models(
         Background color passed to PyVista plotters; `None` uses library default.
     legend_labels : list[str] or None, optional
         Override labels for legend entries.
+    shades_opacity : float, optional
+        Opacity for rendered shade geometry (0..1). Preview-only; source
+        geometry is unchanged. Default 0.5.
     **plot_kwargs :
         Forwarded to each `pv.Plotter.add_mesh` call (e.g., `show_wireframe=True`,
         `surface_opacity=0.6`, `wireframe_line_width=1.0`, `wireframe_show_vertices=False`).
@@ -399,19 +403,15 @@ def plot_honeybee_models(
         edges_struct = []
         edges_openings = []
 
-        OPENING_KEYS = {
-            "aperture",
-            "interior_aperture",
-            "door",
-            "interior_door",
-            "outdoor_shade",
-            "indoor_shade",
-            "shade",
-            "shade_mesh",
-        }
+        # NOTE: define keys *inside* so nested closures can see them →
+        OPENING_KEYS = {"aperture", "interior_aperture", "door", "interior_door"}
+        SHADE_KEYS = {"outdoor_shade", "indoor_shade", "shade_mesh", "shade"}
 
         def _add_wire_polygon(pts3, key=None):
             if not want_wire or not pts3:
+                return
+            # do not wireframe shades
+            if key in SHADE_KEYS:
                 return
             for i in range(len(pts3)):
                 a = _pt_to_tuple(pts3[i])
@@ -819,7 +819,7 @@ def plot_honeybee_models(
     room_ids = plot_kwargs.get("room_ids", None)
     wire_color = plot_kwargs.get("wireframe_color", "black")
     wire_width = float(plot_kwargs.get("wireframe_width", 1.5))
-    # openings (windows/doors/shades) wireframe style — default slightly thinner
+    # openings (windows/doors) wireframe style — default slightly thinner
     wire_open_color = plot_kwargs.get("wireframe_openings_color", wire_color)
     wire_open_width = float(plot_kwargs.get("wireframe_openings_width", max(0.5, wire_width * 0.7)))
     # show or hide vertex points at wireframe corners (default: hide)
@@ -960,6 +960,8 @@ def plot_honeybee_models(
         per_col = 0
         item_h = 0
 
+
+
     # ----------------------- compose the full canvas ---------------------------
 
     canvas_w = int(total_width)
@@ -974,6 +976,10 @@ def plot_honeybee_models(
         r, c = divmod(i, cols)
         p = pv.Plotter(off_screen=True, window_size=(int(cell_w), int(cell_h)))
         p.set_background(bg_color)
+        try:
+            p.enable_depth_peeling(occlusion_ratio=0.1, number_of_peels=100)
+        except Exception:
+            pass
 
         cats, edges_struct, edges_openings = _collect_hb_triangles(
             m,
@@ -983,6 +989,8 @@ def plot_honeybee_models(
             want_wire=show_wireframe,
         )
 
+        SHADE_KEYS = {"outdoor_shade", "indoor_shade", "shade_mesh", "shade"}
+
         # filled surfaces per category
         for key in sorted(cats.keys()):
             cat = cats[key]
@@ -991,21 +999,76 @@ def plot_honeybee_models(
             pd = _polydata_from_category(cat)
             if pd is None:
                 continue
-            p.add_mesh(
-                pd,
-                color=COLOR_MAP.get(key, COLOR_MAP["default"]),
-                opacity=np.clip(surface_opacity, 0.0, 1.0),
-                smooth_shading=False,
-                lighting=False,
-                show_edges=False,
-                edge_color="black",
-                line_width=1.0,
-                reset_camera=False,
-                # Ensure no point glyphs ever appear on filled meshes
-                show_vertices=False,
-                render_points_as_spheres=False,
-                point_size=0,
-            )
+
+            is_shade = key in SHADE_KEYS
+            opacity = np.clip(shades_opacity if is_shade else surface_opacity, 0.0, 1.0)
+
+            is_shade = key in SHADE_KEYS
+            base_color = COLOR_MAP.get(key, COLOR_MAP["default"])
+            op = float(np.clip(shades_opacity if is_shade else surface_opacity, 0.0, 1.0))
+
+            if not is_shade:
+                # normal (non-shade) geometry
+                p.add_mesh(
+                    pd,
+                    color=base_color,
+                    opacity=op,
+                    smooth_shading=False,
+                    lighting=False,
+                    show_edges=False,
+                    edge_color="black",
+                    line_width=1.0,
+                    reset_camera=False,
+                    show_vertices=False,
+                    render_points_as_spheres=False,
+                    point_size=0,
+                )
+            else:
+                # --- SHADES: draw twice with opposite polygon offsets ---
+                # split opacity across two actors so total equals `shades_opacity`
+                op_half = op * 0.5
+
+                # front-biased offset
+                a1 = p.add_mesh(
+                    pd,
+                    color=base_color,
+                    opacity=op_half,
+                    smooth_shading=False,
+                    lighting=False,
+                    show_edges=False,
+                    reset_camera=False,
+                    show_vertices=False,
+                    render_points_as_spheres=False,
+                    point_size=0,
+                )
+                try:
+                    m1 = a1.mapper
+                    m1.SetResolveCoincidentTopologyToPolygonOffset()
+                    # (factor, units) → push towards camera
+                    m1.SetResolveCoincidentTopologyPolygonOffsetParameters(1, 1)
+                except Exception:
+                    pass
+
+                # back-biased offset
+                a2 = p.add_mesh(
+                    pd,
+                    color=base_color,
+                    opacity=op_half,
+                    smooth_shading=False,
+                    lighting=False,
+                    show_edges=False,
+                    reset_camera=False,
+                    show_vertices=False,
+                    render_points_as_spheres=False,
+                    point_size=0,
+                )
+                try:
+                    m2 = a2.mapper
+                    m2.SetResolveCoincidentTopologyToPolygonOffset()
+                    # negative offset → pull away from camera
+                    m2.SetResolveCoincidentTopologyPolygonOffsetParameters(-1, -1)
+                except Exception:
+                    pass
 
         # wireframe overlays with separate styling for structural vs openings
         if show_wireframe:
