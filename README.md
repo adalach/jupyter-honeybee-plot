@@ -45,9 +45,7 @@ plot_honeybee_model(model, show_wireframe=True, show_legend=True)
 ```
 
 **Preview**
-
-[<img src="examples/example_model.png" alt="Example Honeybee model preview" width="500"/>](examples/example_model.html)
-
+![example_model.webp](examples/example_model.webp)
 
 
 ### Plot multiple Honeybee models in a grid layout
@@ -71,6 +69,7 @@ The `plot_honeybee_models()` function renders multiple Honeybee models at once a
 * `camera_zoom`: zoom multiplier after fitting (default `1.25`)
 * `background_color`: sets PyVista background color for each tile
 * `legend_labels`: optional custom text for legend entries
+* `shades_opacity`: visibility of the shading surface (default `0.5`)
 * `**plot_kwargs`: forwarded to `pyvista.Plotter.add_mesh` (e.g., `surface_opacity=0.6`, `show_wireframe=True`)
 
 **Outputs**
